@@ -69,4 +69,6 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'com.jakewharton.timber:timber:5.0.1'
 
+    implementation "org.java-websocket:Java-WebSocket:1.5.1"
+
 }

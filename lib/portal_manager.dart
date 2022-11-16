@@ -38,6 +38,14 @@ class PortalManager{
         });
   }
 
+  void sendMessageToServer() {
+    invokeMethod("sendMessageToServer", null);
+  }
+
+  void createServerSocketThread() {
+    invokeMethod("createServerSocketThread", null);
+  }
+
   void discoverPeers() {
     invokeMethod("discoverPeers", true);
   }
@@ -45,6 +53,8 @@ class PortalManager{
   void connectToDevice(int index){
     invokeMethod("connectToDevice", index);
   }
+
+
 
 
   Future<dynamic> invokeMethod(String item, dynamic data) async {

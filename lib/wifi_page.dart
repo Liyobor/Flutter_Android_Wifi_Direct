@@ -29,12 +29,29 @@ class _WifiPageState extends State<WifiPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
-              child: TextButton(onPressed:(){
-                EasyLoading.show(status: 'Searching...');
-                pMgr.discoverPeers();
-              }, child: const Text('Scan')),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
+                  child: TextButton(onPressed:(){
+                    EasyLoading.show(status: 'Searching...');
+                    pMgr.discoverPeers();
+                  }, child: const Text('Scan')),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
+                  child: TextButton(onPressed:(){
+                    pMgr.sendMessageToServer();
+                  }, child: const Text('Send')),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
+                  child: TextButton(onPressed:(){
+                    pMgr.createServerSocketThread();
+                  }, child: const Text('Create')),
+                ),
+              ],
             ),
             SizedBox(
               height: MediaQuery.of(context).size.height*0.65,
