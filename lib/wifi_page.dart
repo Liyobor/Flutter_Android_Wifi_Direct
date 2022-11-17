@@ -42,7 +42,7 @@ class _WifiPageState extends State<WifiPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
                   child: TextButton(onPressed:(){
-                    pMgr.sendMessageToServer();
+                    pMgr.sendMessage();
                   }, child: const Text('Send')),
                 ),
                 Padding(

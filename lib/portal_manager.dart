@@ -38,8 +38,8 @@ class PortalManager{
         });
   }
 
-  void sendMessageToServer() {
-    invokeMethod("sendMessageToServer", null);
+  void sendMessage() {
+    invokeMethod("sendMessage", null);
   }
 
   void createServerSocketThread() {

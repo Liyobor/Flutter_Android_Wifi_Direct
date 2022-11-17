@@ -14,17 +14,12 @@ import android.net.wifi.p2p.WifiP2pManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import timber.log.Timber
-import java.io.*
-import java.net.InetSocketAddress
-import java.net.ServerSocket
-import java.net.Socket
 
 class MainActivity: FlutterActivity() {
 
@@ -32,6 +27,7 @@ class MainActivity: FlutterActivity() {
         const val REQUEST_WIFI = 87
         const val PERMISSION_ID = 1010
     }
+
 
     private val methodChannel = "com.liyobor.android_wifi_direct.method"
     private val eventChannel = "com.liyobor.android_wifi_direct.event"
@@ -45,31 +41,19 @@ class MainActivity: FlutterActivity() {
     addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION)
     }
 
-//    private lateinit var wManager: WifiP2pManager
-//    private val wManager: WifiP2pManager? by lazy(LazyThreadSafetyMode.NONE) {
-//        getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager?
-//    }
-
     private lateinit var wManager: WifiP2pManager
-
 
 
     private var wChannel: WifiP2pManager.Channel? = null
     private var wReceiver: BroadcastReceiver? = null
-//    private lateinit var wChannel: WifiP2pManager.Channel
-//    private lateinit var wReceiver: WiFiBroadcastReceiver
     private val peers = mutableListOf<WifiP2pDevice>()
 
-    private var groupOwnerAddress: String? = null
     private val nServerPort = 8888
-    private var serverSocket: ServerSocket? = null
 
-    private lateinit var clientInputStream:InputStream
-    private lateinit var clientOutputStream:OutputStream
-    private lateinit var serverInputStream:InputStream
-    private lateinit var serverOutputStream:OutputStream
 
-    private val clientSocket = Socket()
+    private lateinit var webSocketServer: WebSocketServer
+    private lateinit var webSocketClient: WebSocketClient
+
 
 
     private val peerListListener = WifiP2pManager.PeerListListener { peerList ->
@@ -103,138 +87,10 @@ class MainActivity: FlutterActivity() {
     }
 
 
-    private fun createClientThread(host:String?,port:Int):Thread?{
-        if (host==null){
-            Timber.i("host can not be null!")
-            return null
-        }
-
-        val clientThread = Thread {
-            if(!clientSocket.isBound){
-                clientSocket.bind(null)
-            }
-            clientSocket.connect(InetSocketAddress(host,port),500)
-            try {
-
-                clientOutputStream = clientSocket.getOutputStream()
-                clientOutputStream.write("message from client".toByteArray())
-                while (clientSocket.isConnected){
-                    clientInputStream = clientSocket.getInputStream()
-                    val bufferedReader = BufferedReader(InputStreamReader(clientInputStream))
-                    var stringLine: String?
-                    while(!clientSocket.isClosed ){
-                        stringLine = bufferedReader.readLine()
-                        if(stringLine==null){
-                            break
-                        }
-                        Timber.i("Read from server : $stringLine")
-                    }
-                }
-
-                Timber.i("client socket disconnect")
-//                outputStream.close()
-
-            } catch (e: IOException) {
-                e.printStackTrace()
-                return@Thread
-            }
-//            finally {
-//                socket.takeIf { it.isConnected }?.apply {
-//                    close()
-//                }
-//            }
-        }
-        return clientThread
-    }
-
-    private fun clientSend(message:String){
-        if(this::clientOutputStream.isInitialized){
-            Timber.i("clientSend")
-            Thread {
-                clientOutputStream.write(message.toByteArray())
-                clientOutputStream.close()
-            }.start()
-
-        }else{
-            Timber.i("clientOutputStream is not isInitialized")
-        }
-    }
-
-    private fun serverSend(message:String){
-
-        if(this::serverOutputStream.isInitialized){
-            Timber.i("serverSend")
-            Thread {
-                serverOutputStream.write(message.toByteArray())
-                serverOutputStream.close()
-            }.start()
-
-        }else{
-            Timber.i("serverOutputStream is not isInitialized")
-        }
-    }
-
-
-    private fun createServerSocketThread():Thread?{
-        try {
-            // Open a server socket
-
-            serverSocket = ServerSocket(nServerPort)
-
-            // Start a server thread to do socket-accept tasks
-            val serverThread = Thread {
-                while (!serverSocket!!.isClosed){
-                    try {
-                        Timber.i("Waiting for client connection…")
-                        val socketClient = serverSocket!!.accept()
-                        Timber.i("Accepted connection from ${socketClient.inetAddress.hostAddress}")
-                        serverInputStream = socketClient.getInputStream()
-                        serverOutputStream = socketClient.getOutputStream()
-                        val bufferedReader = BufferedReader(InputStreamReader(serverInputStream))
-                        var stringLine:String? = null
-                        while(!socketClient.isClosed ){
-                            stringLine = bufferedReader.readLine()
-                            if(stringLine==null){
-                                break
-                            }
-                            Timber.i("Read from client = $stringLine")
-                        }
-
-//                        inputStream.close()
-//                        outputStream.close()
-                        bufferedReader.close()
-
-                        Looper.prepare()
-                        Toast.makeText(this,"receive message :$stringLine",Toast.LENGTH_LONG).show()
-//                        Timber.i("Read data from client ok. Close connection from " + socketClient.inetAddress.hostAddress)
-                        socketClient.close()
-                    }catch (e:IOException){
-                        e.printStackTrace()
-                    }
-                }
-                Timber.i("server socket close")
-            }
-            return serverThread
-        } catch (e: IOException) {
-            e.printStackTrace()
-            return null
-        }
-    }
-
-
-
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Timber.uprootAll()
         Timber.plant(Timber.DebugTree())
-
-
-
-
-
-//
 
         wManager = getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
         wChannel = wManager.initialize(this, mainLooper, null)
@@ -250,45 +106,17 @@ class MainActivity: FlutterActivity() {
 
             }
         })
-//        wManager.requestConnectionInfo(wChannel){
-//            p0 -> if (p0.isGroupOwner){
-//
-//
-//
-//            } }
-        val serverSocketThread = createServerSocketThread()
-        if(serverSocketThread!=null) {
-            Timber.i("serverSocketThread launch!")
-            serverSocketThread.start()
-        }
-
-
-
-
-
-
-//        wChannel = wManager?.initialize(this, mainLooper, null)
-//        wChannel?.also { channel ->
-//            wReceiver = WiFiBroadcastReceiver(wManager, channel, this)
-//        }
 
 
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        serverSocket?.close()
+
     }
 
     override fun onPause() {
         super.onPause()
-
-
-
-//        wReceiver?.also { receiver ->
-//            unregisterReceiver(receiver)
-//        }
-
         unregisterReceiver(wReceiver)
     }
 
@@ -296,15 +124,6 @@ class MainActivity: FlutterActivity() {
         super.onResume()
         wReceiver = WiFiBroadcastReceiver(wManager, wChannel, this)
         registerReceiver(wReceiver, intentFilter)
-//        wReceiver?.also {
-//                receiver ->
-//            registerReceiver(receiver, intentFilter)
-//        }
-
-
-
-
-
     }
 
     override fun onRequestPermissionsResult(
@@ -411,64 +230,30 @@ class MainActivity: FlutterActivity() {
                             Timber.i("connect fail")
                         }
                     })
-//                    wChannel?.also {
-//                        channel -> wManager?.connect(channel,config,object :WifiP2pManager.ActionListener{
-//                        override fun onSuccess() {
-//                            Timber.i("connect success")
-//                        }
-//
-//                        override fun onFailure(p0: Int) {
-//                            Timber.i("connect fail")
-//                        }
-//                        })
-//                    }
-
-
-//                    Timber.i("connect operation,target = ${peers[index].deviceName}")
                 }
 
-                "sendMessageToServer" -> {
-
-
-                    wManager.requestConnectionInfo(wChannel){
-                            p0->
-                        if(p0.isGroupOwner){
-                            serverSend("message from sever!")
+                "sendMessage" -> {
+                    wManager.requestGroupInfo(wChannel){
+                            group ->
+                        if(group.isGroupOwner){
+                            webSocketServer.serverSend("hello client!")
                         }else{
-                            clientSend("message from client!")
+                            if(!this::webSocketClient.isInitialized){
+                                Timber.i("webSocketClient is not initialized")
+                            }else{
+                                webSocketClient.clientSend("hello server!")
+                            }
                         }
                     }
 
 
 
 
-
-//                    wManager.stopPeerDiscovery(wChannel,object :WifiP2pManager.ActionListener{
-//                        override fun onSuccess() {
-//                            Timber.i("stopPeerDiscovery onSuccess")
-//                        }
-//
-//                        override fun onFailure(p0: Int) {
-//                            Timber.i("stopPeerDiscovery onFailure")
-//                        }
-//
-//                    })
-
-
-
-
-
-
-//                    clientSendMessage(host = groupOwnerAddress,port = nServerPort)
-
                 }
 
-                "createServerSocketThread" -> {
-//                    val serverSocketThread = createServerSocketThread()
-//                    if(serverSocketThread!=null) {
-//                        Timber.i("serverSocketThread launch!")
-//                        serverSocketThread.start()
-//                    }
+                "startServerThread" -> {
+
+
                 }
                 else -> result.notImplemented()
             }
@@ -535,12 +320,17 @@ class MainActivity: FlutterActivity() {
                             wManager.requestGroupInfo(wChannel
                             ) { wifiP2pGroup ->
                                 if (wifiP2pGroup != null) {
-                                    Timber.i("wifiP2pGroup = ${wifiP2pGroup.clientList}")
+//                                    Timber.i("wifiP2pGroup = ${wifiP2pGroup.clientList}")
                                     Timber.i("isGroupOwner = ${p0.isGroupOwner}")
-                                    groupOwnerAddress = p0.groupOwnerAddress.hostAddress
+
                                     if(!p0.isGroupOwner){
-                                        val clientThread = createClientThread(host = groupOwnerAddress, port =nServerPort)
-                                        clientThread!!.start()
+                                        if(!this@MainActivity::webSocketClient.isInitialized){
+                                            webSocketClient = WebSocketClient(this@MainActivity,p0.groupOwnerAddress.hostAddress,nServerPort)
+                                        }
+                                    }else{
+                                        if(!this@MainActivity::webSocketServer.isInitialized){
+                                            webSocketServer = WebSocketServer(this@MainActivity)
+                                        }
                                     }
                                 }
                             }
@@ -555,13 +345,7 @@ class MainActivity: FlutterActivity() {
                 WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
 
                     Timber.i("WIFI_P2P_THIS_DEVICE_CHANGED_ACTION")
-//                    (activity.supportFragmentManager.findFragmentById(R.id.frag_list) as DeviceListFragment)
-//                        .apply {
-//                            updateThisDevice(
-//                                intent.getParcelableExtra(
-//                                    WifiP2pManager.EXTRA_WIFI_P2P_DEVICE) as WifiP2pDevice
-//                            )
-//                        }
+
                 }
             }
         }
