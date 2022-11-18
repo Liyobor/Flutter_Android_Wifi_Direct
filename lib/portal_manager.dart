@@ -50,6 +50,10 @@ class PortalManager{
     invokeMethod("discoverPeers", true);
   }
 
+  void loadWav() {
+    invokeMethod("loadWav", true);
+  }
+
   void connectToDevice(int index){
     invokeMethod("connectToDevice", index);
   }

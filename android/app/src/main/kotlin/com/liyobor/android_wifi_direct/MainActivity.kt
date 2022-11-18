@@ -11,6 +11,7 @@ import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDevice
 import android.net.wifi.p2p.WifiP2pManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -19,13 +20,26 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
+import java.io.*
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class MainActivity: FlutterActivity() {
 
     object Constants {
         const val REQUEST_WIFI = 87
         const val PERMISSION_ID = 1010
+    }
+
+    companion object {
+        const val UPLOAD_FILE_URL =
+//            "https://prsrbrubsj.execute-api.ap-northeast-1.amazonaws.com/demo/upload"
+            "https://9nxqbm8t84.execute-api.ap-northeast-1.amazonaws.com/demo/upload"
     }
 
 
@@ -53,6 +67,8 @@ class MainActivity: FlutterActivity() {
 
     private lateinit var webSocketServer: WebSocketServer
     private lateinit var webSocketClient: WebSocketClient
+
+    private var outputStream: BufferedOutputStream? = null
 
 
 
@@ -110,11 +126,6 @@ class MainActivity: FlutterActivity() {
 
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-
-    }
-
     override fun onPause() {
         super.onPause()
         unregisterReceiver(wReceiver)
@@ -154,6 +165,10 @@ class MainActivity: FlutterActivity() {
             }
         }
     }
+
+
+
+
 
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -251,15 +266,113 @@ class MainActivity: FlutterActivity() {
 
                 }
 
-                "startServerThread" -> {
-
-
+                "loadWav" -> {
+                    loadWavFile(context)
                 }
                 else -> result.notImplemented()
             }
         }
 
     }
+
+    private fun loadWavFile(context: Context){
+        try {
+            val inputStream: InputStream = context.resources.openRawResource(R.raw.pca)
+//            val wavData = ByteArray(inputStream.available())
+            val wavData = inputStream.readBytes()
+            val pcmData = ByteArray(wavData.size-44)
+            System.arraycopy(wavData,44,pcmData,0,pcmData.size)
+            val adpcm = Adpcm()
+            val encodedData = mutableListOf<Int>()
+            var compressedNibble:Byte =0
+            for((index,data) in pcmData.withIndex()){
+                compressedNibble = (compressedNibble.toInt() shr 4).toByte()
+                compressedNibble = (adpcm.adpcm3Encode(data) or compressedNibble.toInt()).toByte()
+//                val encodeByte = adpcm.adpcm3Encode(data)
+                encodedData.add(compressedNibble.toInt())
+            }
+            adpcm.encodeStateReset()
+            Timber.i("---encode finish---")
+            val decodedData = mutableListOf<Float>()
+
+            for((index,data) in encodedData.withIndex()){
+                val decodeByte = adpcm.adpcm3Decode(data)
+                decodedData.add((decodeByte))
+            }
+            adpcm.decodeStateReset()
+
+            val fileTemp = File.createTempFile("tmp_",".raw")
+            if(!fileTemp.exists()){
+                Timber.i("createTempFile failed!")
+                return
+            }
+            val output = FileOutputStream(fileTemp)
+            outputStream = BufferedOutputStream(output)
+
+            val audioData = decodedData.toTypedArray().toFloatArray()
+            val bytes = ByteArray(decodedData.size*4)
+            ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).asFloatBuffer().put(audioData)
+            outputStream?.write(bytes)
+            outputStream?.close()
+            convert2Wav(fileTemp,decodedData.size*4)
+
+            inputStream.close()
+
+        }catch (e: Exception){
+            e.printStackTrace()
+        }
+    }
+
+
+    private fun uploadWav(wavCache:ByteArray?){
+        val currentFormattedTime = getCurrentTime()
+        val client = OkHttpClient()
+        val uuidString = getUUID(context)
+        try {
+            val body = wavCache!!.toRequestBody("audio/wav".toMediaTypeOrNull())
+            val request = Request.Builder()
+                .url(
+                    "$UPLOAD_FILE_URL?filename=${
+                        Build.MODEL + "_16BIT_WifiP2PTest/" + currentFormattedTime + "_" + uuidString.substring(
+                            0,
+                            8
+                        )
+                    }_adpcmMode3.wav"
+                )
+                .post(body).build()
+            val response = client.newCall(request).execute()
+            Timber.e("Response $response")
+            response.close()
+        } catch (e: Exception) {
+            Timber.i("http time out $e")
+        }
+    }
+
+    private fun convert2Wav(fileTmp:File,fileSize:Int) {
+        Thread {
+            try {
+                val raw = fileTmp.readBytes().copyOfRange(0, fileSize)
+                var wavCache:ByteArray? = WavFileBuilderKotlin()
+                    .setAudioFormat(WavFileBuilderKotlin.WAVE_FORMAT_PCM)
+                    .setSampleRate(16000)
+                    .setBitsPerSample(WavFileBuilderKotlin.BITS_PER_SAMPLE_32)
+                    .setNumChannels(WavFileBuilderKotlin.CHANNELS_MONO)
+                    .setSubChunk1Size(WavFileBuilderKotlin.SUB_CHUNK_1_SIZE_PCM)
+                    .build(raw)
+                if (isNetworkAvailable(context)) {
+                    uploadWav(wavCache)
+                } else {
+                    wavCache = null
+                }
+            } catch (e: FileNotFoundException) {
+                Timber.i("file not found exception %s", e.localizedMessage)
+            }
+        }.start()
+    }
+
+
+
+
 
 
     inner class WiFiBroadcastReceiver constructor(
