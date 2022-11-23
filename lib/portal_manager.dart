@@ -4,11 +4,16 @@ import 'dart:async';
 
 
 
-import 'package:flutter/cupertino.dart';
+
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:developer';
 
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+
+import 'chat_room.dart';
+import 'navigation_service.dart';
 
 
 
@@ -27,9 +32,16 @@ class PortalManager{
   final StreamController<WifiList> _wifiListStreamController =
   StreamController.broadcast();
 
+  final StreamController<MessageList> _messageStreamController =
+  StreamController.broadcast();
+
+  Stream<MessageList> get messageList => _messageStreamController.stream;
+
   static const methodChannel = MethodChannel("com.liyobor.android_wifi_direct.method");
   static const eventStream = EventChannel("com.liyobor.android_wifi_direct.event");
   late final StreamSubscription _eventSubscription;
+
+  final List<Widget> messageBox = [];
 
   void init() {
     _eventSubscription = eventStream.receiveBroadcastStream().listen(onUpdate,
@@ -38,9 +50,9 @@ class PortalManager{
         });
   }
 
-  void sendMessage() {
-    invokeMethod("sendMessage", null);
-  }
+  // void sendMessage(String message) {
+  //   invokeMethod("sendMessage", message);
+  // }
 
   void createServerSocketThread() {
     invokeMethod("createServerSocketThread", null);
@@ -52,6 +64,22 @@ class PortalManager{
 
   void connectToDevice(int index){
     invokeMethod("connectToDevice", index);
+  }
+
+
+  void sendMessage(String text){
+    invokeMethod("sendMessage", text);
+    messageBox.insert(
+        0,
+        Container(
+          alignment: Alignment.centerRight,
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 50),
+          ),
+        )
+    );
+    _messageStreamController.sink.add(MessageList(box: messageBox));
   }
 
 
@@ -73,6 +101,24 @@ class PortalManager{
       if(wifiList.isNotEmpty){
         EasyLoading.dismiss();
       }
+    }
+    if(data["receivedMessage"]!=null){
+      String receivedMessage = data["receivedMessage"];
+      messageBox.insert(
+          0,
+          Container(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              receivedMessage,
+              style: const TextStyle(fontSize: 50),
+            ),
+          ));
+      _messageStreamController.sink.add(MessageList(box:messageBox));
+    }
+
+    if(data["enterChat"]!=null){
+
+      NavigationService.navigatorKey.currentState?.pushNamed("/chat");
     }
   }
 
@@ -104,5 +150,12 @@ class WifiList{
   const WifiList(
       {required this.wifiList});
   final List wifiList;
+}
 
+
+@immutable
+class MessageList{
+  const MessageList(
+      {required this.box});
+  final List<Widget> box;
 }

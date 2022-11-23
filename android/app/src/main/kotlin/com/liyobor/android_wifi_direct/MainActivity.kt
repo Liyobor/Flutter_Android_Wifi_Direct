@@ -54,6 +54,7 @@ class MainActivity: FlutterActivity() {
     private lateinit var webSocketServer: WebSocketServer
     private lateinit var webSocketClient: WebSocketClient
 
+    private var isConnected = false
 
 
     private val peerListListener = WifiP2pManager.PeerListListener { peerList ->
@@ -222,29 +223,36 @@ class MainActivity: FlutterActivity() {
                     wManager.connect(wChannel,config,object :WifiP2pManager.ActionListener{
                         override fun onSuccess() {
                             Timber.i("connect success")
-
-
+                            isConnected = true
                         }
 
                         override fun onFailure(p0: Int) {
                             Timber.i("connect fail")
+                            isConnected = false
                         }
                     })
                 }
 
                 "sendMessage" -> {
-                    wManager.requestGroupInfo(wChannel){
-                            group ->
-                        if(group.isGroupOwner){
-                            webSocketServer.serverSend("hello client!")
-                        }else{
-                            if(!this::webSocketClient.isInitialized){
-                                Timber.i("webSocketClient is not initialized")
+                    val message: String = call.arguments()!!
+
+                    if(isConnected){
+                        wManager.requestGroupInfo(wChannel){
+                                group ->
+                            if(group.isGroupOwner){
+                                webSocketServer.serverSend(message)
                             }else{
-                                webSocketClient.clientSend("hello server!")
+                                if(!this::webSocketClient.isInitialized){
+                                    Timber.i("webSocketClient is not initialized")
+                                }else{
+                                    webSocketClient.clientSend(message)
+                                }
                             }
                         }
+                    }else{
+                        Timber.i("not connected")
                     }
+
 
 
 
@@ -320,18 +328,28 @@ class MainActivity: FlutterActivity() {
                             wManager.requestGroupInfo(wChannel
                             ) { wifiP2pGroup ->
                                 if (wifiP2pGroup != null) {
+                                    isConnected = true
 //                                    Timber.i("wifiP2pGroup = ${wifiP2pGroup.clientList}")
                                     Timber.i("isGroupOwner = ${p0.isGroupOwner}")
 
                                     if(!p0.isGroupOwner){
                                         if(!this@MainActivity::webSocketClient.isInitialized){
-                                            webSocketClient = WebSocketClient(this@MainActivity,p0.groupOwnerAddress.hostAddress,nServerPort)
+                                            webSocketClient = WebSocketClient(this@MainActivity,
+                                                streamHandler,
+                                                p0.groupOwnerAddress.hostAddress,nServerPort,
+
+                                            )
+
                                         }
                                     }else{
                                         if(!this@MainActivity::webSocketServer.isInitialized){
-                                            webSocketServer = WebSocketServer(this@MainActivity)
+                                            webSocketServer = WebSocketServer(this@MainActivity,
+                                                streamHandler)
                                         }
+
                                     }
+                                }else{
+                                    isConnected = false
                                 }
                             }
                         }
@@ -367,6 +385,18 @@ class MainActivity: FlutterActivity() {
         fun onWifiScanResult(list: List<String>){
             Handler(Looper.getMainLooper() ?: return).post {
                 eventSink?.success(mapOf("wifiList" to list))
+            }
+        }
+
+        fun onMessageReceived(message: String){
+            Handler(Looper.getMainLooper() ?: return).post {
+                eventSink?.success(mapOf("receivedMessage" to message))
+            }
+        }
+
+        fun enterChat(){
+            Handler(Looper.getMainLooper() ?: return).post {
+                eventSink?.success(mapOf("enterChat" to true))
             }
         }
 

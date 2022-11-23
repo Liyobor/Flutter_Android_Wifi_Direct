@@ -10,7 +10,10 @@ import java.io.InputStreamReader
 import java.net.InetSocketAddress
 import java.net.Socket
 
-class WebSocketClient constructor(private val context: Context, host:String?, port:Int){
+class WebSocketClient constructor(
+    private val context: Context,
+    private val streamerHandler: MainActivity.EventStreamHandler,
+    host:String?, port:Int){
 
     private var clientSocket : Socket? = null
     private var messageToServer:String? = null
@@ -32,6 +35,7 @@ class WebSocketClient constructor(private val context: Context, host:String?, po
         }
 
         Timber.i("create clientThread")
+        streamerHandler.enterChat()
         Thread {
             try {
 
@@ -42,8 +46,8 @@ class WebSocketClient constructor(private val context: Context, host:String?, po
                 val clientInputStream = clientSocket?.getInputStream()
                 val clientOutputStream= clientSocket?.getOutputStream()
                 val bufferedReader = BufferedReader(InputStreamReader(clientInputStream))
-                clientOutputStream?.write("createClientThread".toByteArray())
-                clientOutputStream?.write("\r\n".toByteArray())
+//                clientOutputStream?.write("createClientThread".toByteArray())
+//                clientOutputStream?.write("\r\n".toByteArray())
                 Thread {
                     while(clientSocket!!.isConnected){
                         if(messageToServer!=null){
@@ -63,7 +67,9 @@ class WebSocketClient constructor(private val context: Context, host:String?, po
                     if(stringLine!=null){
 
                         Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
+                        streamerHandler.onMessageReceived(stringLine)
                     }
+
 
                 }
 

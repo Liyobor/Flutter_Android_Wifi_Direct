@@ -4,6 +4,8 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
+import 'chat_room.dart';
+import 'navigation_service.dart';
 import 'wifi_page.dart';
 
 
@@ -38,6 +40,10 @@ Future<void> main() async {
           create: (_) => portal.wifiList,
           initialData: const WifiList(wifiList: []),
         ),
+        StreamProvider<MessageList>(
+          create: (_) => portal.messageList,
+          initialData: const MessageList(box: []),
+        ),
       ], child: const MyApp())
   );
 }
@@ -49,6 +55,21 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      onGenerateRoute: (settings) {
+        WidgetBuilder builder;
+        switch(settings.name) {
+          case '/':
+            builder = (_) => const WifiPage();
+            break;
+          case '/chat':
+            builder = (_) => const ChatPage();
+            break;
+          default:
+            throw Exception('路由名稱有誤: ${settings.name}');
+        }
+        return MaterialPageRoute(builder: builder, settings: settings);
+      },
+      navigatorKey: NavigationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       builder: EasyLoading.init(),

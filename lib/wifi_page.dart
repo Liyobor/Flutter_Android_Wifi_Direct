@@ -1,4 +1,5 @@
 
+import 'package:android_wifi_direct/chat_room.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -15,6 +16,7 @@ class WifiPage extends StatefulWidget {
 class _WifiPageState extends State<WifiPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
+    resizeToAvoidBottomInset: false,
     extendBodyBehindAppBar: true,
     appBar: AppBar(
 
@@ -42,15 +44,16 @@ class _WifiPageState extends State<WifiPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
                   child: TextButton(onPressed:(){
-                    pMgr.sendMessage();
+                    pMgr.sendMessage("hello");
                   }, child: const Text('Send')),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
-                  child: TextButton(onPressed:(){
-                    pMgr.createServerSocketThread();
-                  }, child: const Text('Create')),
-                ),
+                // Padding(
+                //   padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
+                //   child: TextButton(onPressed:(){
+                //     // pMgr.createServerSocketThread();
+                //     Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatPage()));
+                //   }, child: const Text('Create')),
+                // ),
               ],
             ),
             SizedBox(
@@ -102,6 +105,7 @@ class _WifiPageState extends State<WifiPage> {
                 final pMgr = PortalManager();
                 pMgr.connectToDevice(index);
                 Navigator.pop(context);
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatPage()));
               },
             ),
           ],
