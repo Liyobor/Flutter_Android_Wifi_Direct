@@ -10,7 +10,7 @@ import java.io.InputStreamReader
 import java.net.InetSocketAddress
 import java.net.Socket
 
-class WebSocketClient constructor(
+class SocketClient constructor(
     private val context: Context,
     private val streamerHandler: MainActivity.EventStreamHandler,
     host:String?, port:Int){
@@ -33,25 +33,19 @@ class WebSocketClient constructor(
             Timber.i("host can not be null!")
             return
         }
-
         Timber.i("create clientThread")
         streamerHandler.enterChat()
         Thread {
             try {
-
                 clientSocket = Socket()
                 clientSocket?.bind(null)
                 clientSocket?.connect((InetSocketAddress(host, port)), 500)
-
                 val clientInputStream = clientSocket?.getInputStream()
                 val clientOutputStream= clientSocket?.getOutputStream()
                 val bufferedReader = BufferedReader(InputStreamReader(clientInputStream))
-//                clientOutputStream?.write("createClientThread".toByteArray())
-//                clientOutputStream?.write("\r\n".toByteArray())
                 Thread {
                     while(clientSocket!!.isConnected){
                         if(messageToServer!=null){
-//                            Timber.i("messageToServer !=null send!")
                             clientOutputStream?.write(messageToServer!!.toByteArray())
                             clientOutputStream?.write("\r\n".toByteArray())
                             clientOutputStream?.flush()
@@ -61,23 +55,16 @@ class WebSocketClient constructor(
                 }.start()
                 Looper.prepare()
                 while (clientSocket!!.isConnected){
-
-
                     val stringLine: String? = bufferedReader.readLine()
                     if(stringLine!=null){
 
                         Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
                         streamerHandler.onMessageReceived(stringLine)
                     }
-
-
                 }
-
-
             } catch (e: IOException) {
                 e.printStackTrace()
             }
-
         }.start()
     }
 }

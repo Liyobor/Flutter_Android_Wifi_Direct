@@ -10,7 +10,7 @@ import java.io.InputStreamReader
 import java.net.ServerSocket
 import java.net.Socket
 
-class WebSocketServer constructor(
+class SocketServer constructor(
     private val context: Context,
     private val streamerHandler: MainActivity.EventStreamHandler) {
 
@@ -54,17 +54,15 @@ class WebSocketServer constructor(
             val socket = serverSocket!!.accept()
             Timber.i("accept!")
             streamerHandler.enterChat()
-            addNewClient(socket)
+            newClient(socket)
         }catch (e:Exception){
             e.printStackTrace()
         }
 
-
     }
 
-    private fun addNewClient(socket: Socket){
+    private fun newClient(socket: Socket){
         try{
-
             val serverInputStream = socket.getInputStream()
             val serverOutputStream = socket.getOutputStream()
             val bufferedReader = BufferedReader(InputStreamReader(serverInputStream))
@@ -82,17 +80,11 @@ class WebSocketServer constructor(
             }.start()
             Looper.prepare()
             while (socket.isConnected){
-
                 stringLine = bufferedReader.readLine()
                 if(stringLine!=null){
-
                     Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
                     streamerHandler.onMessageReceived(stringLine)
                 }
-
-
-
-
             }
 
         }catch (e:Exception){

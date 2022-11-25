@@ -35,15 +35,22 @@ class MainActivity: FlutterActivity() {
     private val streamHandler = EventStreamHandler()
 //
     private val intentFilter = IntentFilter().apply {
+
+    // Indicates a change in the Wi-Fi Direct status.
     addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
+
+    // Indicates a change in the list of available peers.
     addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
+
+    // Indicates the state of Wi-Fi Direct connectivity has changed.
     addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
+
+    // Indicates this device's details have changed.
     addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION)
+
     }
 
     private lateinit var wManager: WifiP2pManager
-
-
     private var wChannel: WifiP2pManager.Channel? = null
     private var wReceiver: BroadcastReceiver? = null
     private val peers = mutableListOf<WifiP2pDevice>()
@@ -51,8 +58,8 @@ class MainActivity: FlutterActivity() {
     private val nServerPort = 8888
 
 
-    private lateinit var webSocketServer: WebSocketServer
-    private lateinit var webSocketClient: WebSocketClient
+    private lateinit var socketServer: SocketServer
+    private lateinit var socketClient: SocketClient
 
     private var isConnected = false
 
@@ -68,8 +75,6 @@ class MainActivity: FlutterActivity() {
                 deviceList.add(device.deviceName)
             }
             streamHandler.onWifiScanResult(deviceList)
-
-
             // If an AdapterView is backed by this data, notify it
             // of the change. For instance, if you have a ListView of
             // available peers, trigger an update.
@@ -78,13 +83,10 @@ class MainActivity: FlutterActivity() {
             // Perform any other updates needed based on the new list of
             // peers connected to the Wi-Fi P2P network.
         }
-
         if (peers.isEmpty()) {
             Timber.i("No devices found")
             return@PeerListListener
         }
-
-
     }
 
 
@@ -95,7 +97,6 @@ class MainActivity: FlutterActivity() {
 
         wManager = getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
         wChannel = wManager.initialize(this, mainLooper, null)
-
 
 
         wManager.removeGroup(wChannel,object:WifiP2pManager.ActionListener{
@@ -170,7 +171,6 @@ class MainActivity: FlutterActivity() {
                 "discoverPeers" -> {
 //                    streamHandler.onResult(listOf(12f,0.85f))
 
-
                     if (ActivityCompat.checkSelfPermission(
                             this,
                             Manifest.permission.ACCESS_FINE_LOCATION
@@ -185,6 +185,7 @@ class MainActivity: FlutterActivity() {
                         )
 
                     }else{
+
                         wManager.discoverPeers(
                             wChannel, object : WifiP2pManager.ActionListener {
 
@@ -211,15 +212,11 @@ class MainActivity: FlutterActivity() {
 
                 "connectToDevice"-> {
                     val index: Int = call.arguments()!!
-
-
                     val device = peers[index]
                     val config = WifiP2pConfig().apply {
                         deviceAddress = device.deviceAddress
                         wps.setup = WpsInfo.PBC
                     }
-
-
                     wManager.connect(wChannel,config,object :WifiP2pManager.ActionListener{
                         override fun onSuccess() {
                             Timber.i("connect success")
@@ -240,12 +237,12 @@ class MainActivity: FlutterActivity() {
                         wManager.requestGroupInfo(wChannel){
                                 group ->
                             if(group.isGroupOwner){
-                                webSocketServer.serverSend(message)
+                                socketServer.serverSend(message)
                             }else{
-                                if(!this::webSocketClient.isInitialized){
-                                    Timber.i("webSocketClient is not initialized")
+                                if(!this::socketClient.isInitialized){
+                                    Timber.i("SocketClient is not initialized")
                                 }else{
-                                    webSocketClient.clientSend(message)
+                                    socketClient.clientSend(message)
                                 }
                             }
                         }
@@ -269,12 +266,13 @@ class MainActivity: FlutterActivity() {
 
     }
 
-
     inner class WiFiBroadcastReceiver constructor(
         private val manager: WifiP2pManager?,
         private val channel: WifiP2pManager.Channel?,
         private val activity: FlutterActivity
-    ) : BroadcastReceiver() {
+    ) : BroadcastReceiver()
+    {
+
         override fun onReceive(context: Context, intent: Intent) {
             when(intent.action) {
                 WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
@@ -295,8 +293,6 @@ class MainActivity: FlutterActivity() {
                     }
                 }
                 WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
-
-
                     if (ActivityCompat.checkSelfPermission(
                             context,
                             Manifest.permission.ACCESS_FINE_LOCATION
@@ -333,20 +329,18 @@ class MainActivity: FlutterActivity() {
                                     Timber.i("isGroupOwner = ${p0.isGroupOwner}")
 
                                     if(!p0.isGroupOwner){
-                                        if(!this@MainActivity::webSocketClient.isInitialized){
-                                            webSocketClient = WebSocketClient(this@MainActivity,
+                                        if(!this@MainActivity::socketClient.isInitialized){
+                                            socketClient = SocketClient(this@MainActivity,
                                                 streamHandler,
                                                 p0.groupOwnerAddress.hostAddress,nServerPort,
 
                                             )
-
                                         }
                                     }else{
-                                        if(!this@MainActivity::webSocketServer.isInitialized){
-                                            webSocketServer = WebSocketServer(this@MainActivity,
+                                        if(!this@MainActivity::socketServer.isInitialized){
+                                            socketServer = SocketServer(this@MainActivity,
                                                 streamHandler)
                                         }
-
                                     }
                                 }else{
                                     isConnected = false
