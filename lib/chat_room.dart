@@ -36,6 +36,13 @@ class ChatPageState extends State<ChatPage> {
         // resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: const Text('Chat'),
+          leading: BackButton(
+            onPressed:(){
+              final pMgr = PortalManager();
+              Navigator.of(context).pop();
+              pMgr.closeSocket();
+            },
+          ),
         ),
         body: Column(
           children: <Widget>[

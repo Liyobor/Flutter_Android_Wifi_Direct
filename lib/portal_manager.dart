@@ -66,6 +66,24 @@ class PortalManager{
     invokeMethod("connectToDevice", index);
   }
 
+  void connectToServerTCP(String ip,String port){
+
+    int portInt = int.parse(port);
+    var map = {
+      'port':portInt,
+      'ip':ip,
+    };
+    invokeMethod("connectToServerTCP", map);
+  }
+
+  void closeSocket(){
+    invokeMethod("closeSocket", null);
+  }
+
+  void upload(){
+    invokeMethod("upload", null);
+  }
+
 
   void sendMessage(String text){
     invokeMethod("sendMessage", text);

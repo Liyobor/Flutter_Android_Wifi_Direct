@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:provider/provider.dart';
 
+import 'navigation_service.dart';
 import 'portal_manager.dart';
 
 class WifiPage extends StatefulWidget {
@@ -46,6 +47,12 @@ class _WifiPageState extends State<WifiPage> {
                   child: TextButton(onPressed:(){
                     pMgr.sendMessage("hello");
                   }, child: const Text('Send')),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),
+                  child: TextButton(onPressed:(){
+                    NavigationService.navigatorKey.currentState?.pushNamed("/TCP");
+                  }, child: const Text('TCP')),
                 ),
                 // Padding(
                 //   padding: const EdgeInsets.fromLTRB(0, 120, 0, 20),

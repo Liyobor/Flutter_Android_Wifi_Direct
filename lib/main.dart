@@ -1,4 +1,5 @@
 import 'package:android_wifi_direct/portal_manager.dart';
+import 'package:android_wifi_direct/tcp_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -63,6 +64,9 @@ class MyApp extends StatelessWidget {
             break;
           case '/chat':
             builder = (_) => const ChatPage();
+            break;
+          case '/TCP':
+            builder = (_) => const TCPPage();
             break;
           default:
             throw Exception('路由名稱有誤: ${settings.name}');
