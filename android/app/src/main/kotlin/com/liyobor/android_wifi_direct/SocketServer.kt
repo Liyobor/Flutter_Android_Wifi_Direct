@@ -4,9 +4,10 @@ import android.content.Context
 import android.os.Looper
 import android.widget.Toast
 import timber.log.Timber
-import java.io.BufferedReader
+import java.io.DataInputStream
 import java.io.IOException
-import java.io.InputStreamReader
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -19,9 +20,20 @@ class SocketServer constructor(
     private val nServerPort = 8888
 
 
+    private lateinit var serverInputStream :InputStream
+    private lateinit var serverOutputStream :OutputStream
+    private lateinit var dataInputStream:DataInputStream
+
+
 
     init {
         startServerThread()
+    }
+
+    fun close(){
+        serverInputStream.close()
+        serverOutputStream.close()
+        serverSocket?.close()
     }
 
     fun serverSend(message:String){
@@ -63,33 +75,58 @@ class SocketServer constructor(
 
     private fun newClient(socket: Socket){
         try{
-            val serverInputStream = socket.getInputStream()
-            val serverOutputStream = socket.getOutputStream()
-            val bufferedReader = BufferedReader(InputStreamReader(serverInputStream))
-            var stringLine:String?
+            serverInputStream = socket.getInputStream()
+            serverOutputStream = socket.getOutputStream()
+//            val bufferedReader = BufferedReader(InputStreamReader(serverInputStream))
+            dataInputStream = DataInputStream(serverInputStream)
+//            var stringLine:String?
             Timber.i("socket.isConnected = ${socket.isConnected}")
-            Thread{
-                while(socket.isConnected){
-                    if(messageToClient!=null){
-                        serverOutputStream.write(messageToClient!!.toByteArray())
-                        serverOutputStream.write("\r\n".toByteArray())
-                        serverOutputStream.flush()
-                        messageToClient = null
-                    }
-                }
-            }.start()
-            Looper.prepare()
-            while (socket.isConnected){
-                stringLine = bufferedReader.readLine()
-                if(stringLine!=null){
-                    Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
-                    streamerHandler.onMessageReceived(stringLine)
-                }
-            }
+            startMonitoringMessage(socket.isConnected,socket.isClosed)
+//            Thread{
+//                while(socket.isConnected && !socket.isClosed){
+//                    if(messageToClient!=null){
+//                        serverOutputStream.write(messageToClient!!.toByteArray())
+//                        serverOutputStream.write("\r\n".toByteArray())
+//                        serverOutputStream.flush()
+//                        messageToClient = null
+//                    }
+//                }
+//            }.start()
+//            Looper.prepare()
+//            while (socket.isConnected && !socket.isClosed){
+//                stringLine = bufferedReader.readLine()
+//                if(stringLine!=null){
+//                    Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
+//                    streamerHandler.onMessageReceived(stringLine)
+//                }
+//            }
 
         }catch (e:Exception){
             e.printStackTrace()
         }
 
+    }
+
+    private fun writeMessageToOutputStream(){
+        serverOutputStream.write(messageToClient!!.toByteArray())
+        serverOutputStream.write("\r\n".toByteArray())
+        serverOutputStream.flush()
+    }
+
+    private fun startMonitoringMessage(isConnected:Boolean,isClosed:Boolean){
+        Thread{
+            while(isConnected && !isClosed){
+                if(messageToClient!=null){
+                    writeMessageToOutputStream()
+                    messageToClient = null
+                }
+            }
+        }.start()
+        Looper.prepare()
+        while (isConnected && !isClosed){
+            val rcv = dataInputStream.read()
+            Toast.makeText(context,"receive message : $rcv", Toast.LENGTH_LONG).show()
+            streamerHandler.onMessageReceived(rcv.toString())
+        }
     }
 }

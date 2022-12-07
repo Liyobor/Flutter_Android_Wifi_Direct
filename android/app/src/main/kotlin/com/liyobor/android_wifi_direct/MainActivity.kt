@@ -260,6 +260,30 @@ class MainActivity: FlutterActivity() {
 
 
                 }
+
+                "connectToServerTCP" ->{
+
+                    val map:Map<String,Any> = call.arguments()!!
+                    Timber.i("ip = ${map["ip"]}")
+                    Timber.i("port = ${map["port"]}")
+                    socketClient = SocketClient(this,streamHandler, map["ip"] as String, map["port"] as Int)
+
+                }
+
+                "closeSocket" ->{
+                    Timber.i("closeSocket")
+                    if(this::socketClient.isInitialized){
+                        socketClient.close()
+                    }
+
+                    if(this::socketServer.isInitialized){
+                        socketServer.close()
+                    }
+                }
+
+                "upload" ->{
+                    socketClient.upload()
+                }
                 else -> result.notImplemented()
             }
         }
