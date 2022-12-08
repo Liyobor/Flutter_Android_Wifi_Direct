@@ -10,9 +10,9 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 class SocketClient constructor(
-    private val context: Context,
+    context: Context,
     private val streamerHandler: MainActivity.EventStreamHandler,
-    host:String?, port:Int){
+    private val host:String?,private val port:Int): MainActivity.MySocket {
 
     private var clientSocket : Socket? = null
     private var messageToServer:String? = null
@@ -23,21 +23,22 @@ class SocketClient constructor(
     private lateinit var clientOutputStream:OutputStream
     private lateinit var dataInputStream:DataInputStream
 
-    init {
+    override fun start() {
         startClientThread(host,port)
     }
 
-    fun close(){
+    override fun close(){
         clientInputStream.close()
         clientOutputStream.close()
         dataInputStream.close()
         clientSocket?.close()
     }
 
-    fun clientSend(message:String){
+    override fun sendMessage(message:String) {
         Timber.i("clientSend")
         messageToServer = message
     }
+
 
     private fun startClientThread(host:String?,port:Int){
         if (host==null){
@@ -142,7 +143,7 @@ class SocketClient constructor(
 
     }
 
-    fun upload(){
+    override fun uploadAudioToAWS(){
         audioDataHandler.stop()
     }
 }

@@ -11,35 +11,41 @@ import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
+
 class SocketServer constructor(
-    private val context: Context,
-    private val streamerHandler: MainActivity.EventStreamHandler) {
+    context: Context,
+    private val streamerHandler: MainActivity.EventStreamHandler): MainActivity.MySocket {
 
     private var messageToClient:String? = null
     private var serverSocket: ServerSocket? = null
     private val nServerPort = 8888
 
+    private val audioDataHandler = AudioDataHandler(context)
 
     private lateinit var serverInputStream :InputStream
     private lateinit var serverOutputStream :OutputStream
     private lateinit var dataInputStream:DataInputStream
 
 
-
-    init {
+    override fun start() {
         startServerThread()
     }
 
-    fun close(){
+    override fun close(){
         serverInputStream.close()
         serverOutputStream.close()
+        dataInputStream.close()
         serverSocket?.close()
     }
 
-    fun serverSend(message:String){
-        Timber.i("serverSend")
+    override fun sendMessage(message: String) {
         messageToClient = message
     }
+
+    override fun uploadAudioToAWS() {
+        audioDataHandler.stop()
+    }
+
 
     private fun startServerThread(){
         try {
@@ -47,12 +53,8 @@ class SocketServer constructor(
             serverSocket = ServerSocket(nServerPort)
             Timber.i("Waiting for client connection…")
             Thread{
-
                 waitForClient()
-
             }.start()
-
-
         } catch (e: IOException) {
             e.printStackTrace()
         }
@@ -122,11 +124,31 @@ class SocketServer constructor(
                 }
             }
         }.start()
-        Looper.prepare()
+
+        audioDataHandler.initializeFile()
+        val floatList = mutableListOf<Float>()
+        var receiveCount = 1
+        var temp = 0
         while (isConnected && !isClosed){
-            val rcv = dataInputStream.read()
-            Toast.makeText(context,"receive message : $rcv", Toast.LENGTH_LONG).show()
-            streamerHandler.onMessageReceived(rcv.toString())
+            try {
+                val rcv = dataInputStream.read()
+                if (receiveCount % 2 == 1) {
+                    temp = rcv
+                } else {
+                    temp += (rcv.shl(8))
+                    val short = temp.toShort()
+                    Timber.i("temp = $short")
+                    floatList.add((short / 32767.0).toFloat())
+                    temp = 0
+                }
+                if (floatList.size >= 3200) {
+                    audioDataHandler.writeInTemp(floatList.toFloatArray())
+                    floatList.clear()
+                }
+                receiveCount += 1
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
         }
     }
 }

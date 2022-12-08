@@ -28,6 +28,13 @@ class MainActivity: FlutterActivity() {
         const val PERMISSION_ID = 1010
     }
 
+    interface MySocket {
+        fun start()
+        fun close()
+        fun sendMessage(message:String)
+        fun uploadAudioToAWS()
+    }
+
 
     private val methodChannel = "com.liyobor.android_wifi_direct.method"
     private val eventChannel = "com.liyobor.android_wifi_direct.event"
@@ -58,8 +65,8 @@ class MainActivity: FlutterActivity() {
     private val nServerPort = 8888
 
 
-    private lateinit var socketServer: SocketServer
-    private lateinit var socketClient: SocketClient
+    private lateinit var socketServer: MySocket
+    private lateinit var socketClient: MySocket
 
     private var isConnected = false
 
@@ -237,12 +244,12 @@ class MainActivity: FlutterActivity() {
                         wManager.requestGroupInfo(wChannel){
                                 group ->
                             if(group.isGroupOwner){
-                                socketServer.serverSend(message)
+                                socketServer.sendMessage(message)
                             }else{
                                 if(!this::socketClient.isInitialized){
                                     Timber.i("SocketClient is not initialized")
                                 }else{
-                                    socketClient.clientSend(message)
+                                    socketClient.sendMessage(message)
                                 }
                             }
                         }
@@ -282,7 +289,7 @@ class MainActivity: FlutterActivity() {
                 }
 
                 "upload" ->{
-                    socketClient.upload()
+                    socketClient.uploadAudioToAWS()
                 }
                 else -> result.notImplemented()
             }
