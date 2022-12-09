@@ -1,33 +1,22 @@
 package com.liyobor.android_wifi_direct
 
-import android.content.Context
-import android.os.Looper
-import android.widget.Toast
 import timber.log.Timber
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
+import java.io.*
 import java.net.ServerSocket
 import java.net.Socket
 
-class SocketServer constructor(
-    private val context: Context,
-    private val streamerHandler: MainActivity.EventStreamHandler) {
+class SocketServer(
+    private val streamerHandler: MainActivity.EventStreamHandler
+) :MainActivity.MySocket{
 
     private var messageToClient:String? = null
     private var serverSocket: ServerSocket? = null
     private val nServerPort = 8888
 
-
-
-    init {
-        startServerThread()
-    }
-
-    fun serverSend(message:String){
-        Timber.i("serverSend")
-        messageToClient = message
-    }
+    private lateinit var inputStream : InputStream
+    private lateinit var outputStream :OutputStream
+    private lateinit var dataInputStream : DataInputStream
+    private lateinit var dataOutputStream : DataOutputStream
 
     private fun startServerThread(){
         try {
@@ -63,33 +52,48 @@ class SocketServer constructor(
 
     private fun newClient(socket: Socket){
         try{
-            val serverInputStream = socket.getInputStream()
-            val serverOutputStream = socket.getOutputStream()
-            val bufferedReader = BufferedReader(InputStreamReader(serverInputStream))
-            var stringLine:String?
+            inputStream = socket.getInputStream()
+            outputStream = socket.getOutputStream()
+            dataInputStream = DataInputStream(inputStream)
+            dataOutputStream = DataOutputStream(outputStream)
             Timber.i("socket.isConnected = ${socket.isConnected}")
             Thread{
                 while(socket.isConnected){
                     if(messageToClient!=null){
-                        serverOutputStream.write(messageToClient!!.toByteArray())
-                        serverOutputStream.write("\r\n".toByteArray())
-                        serverOutputStream.flush()
+
+                        dataOutputStream.writeUTF(messageToClient)
+                        dataOutputStream.flush()
                         messageToClient = null
                     }
                 }
             }.start()
-            Looper.prepare()
             while (socket.isConnected){
-                stringLine = bufferedReader.readLine()
-                if(stringLine!=null){
-                    Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
-                    streamerHandler.onMessageReceived(stringLine)
-                }
+                val stringLine = dataInputStream.readUTF()
+                streamerHandler.onMessageReceived(stringLine)
             }
 
         }catch (e:Exception){
             e.printStackTrace()
         }
 
+    }
+
+    override fun start() {
+        startServerThread()
+    }
+
+    override fun close() {
+        if(serverSocket!=null){
+            inputStream.close()
+            outputStream.close()
+            dataInputStream.close()
+            dataOutputStream.close()
+            serverSocket?.close()
+        }
+    }
+
+    override fun send(message: String) {
+        Timber.i("serverSend")
+        messageToClient = message
     }
 }

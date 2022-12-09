@@ -28,6 +28,12 @@ class MainActivity: FlutterActivity() {
         const val PERMISSION_ID = 1010
     }
 
+    interface MySocket{
+        fun start()
+        fun close()
+        fun send(message:String)
+    }
+
 
     private val methodChannel = "com.liyobor.android_wifi_direct.method"
     private val eventChannel = "com.liyobor.android_wifi_direct.event"
@@ -237,12 +243,12 @@ class MainActivity: FlutterActivity() {
                         wManager.requestGroupInfo(wChannel){
                                 group ->
                             if(group.isGroupOwner){
-                                socketServer.serverSend(message)
+                                socketServer.send(message)
                             }else{
                                 if(!this::socketClient.isInitialized){
                                     Timber.i("SocketClient is not initialized")
                                 }else{
-                                    socketClient.clientSend(message)
+                                    socketClient.send(message)
                                 }
                             }
                         }
@@ -330,16 +336,17 @@ class MainActivity: FlutterActivity() {
 
                                     if(!p0.isGroupOwner){
                                         if(!this@MainActivity::socketClient.isInitialized){
-                                            socketClient = SocketClient(this@MainActivity,
+                                            socketClient = SocketClient(
                                                 streamHandler,
-                                                p0.groupOwnerAddress.hostAddress,nServerPort,
-
+                                                p0.groupOwnerAddress.hostAddress,
+                                                nServerPort,
                                             )
+                                            socketClient.start()
                                         }
                                     }else{
                                         if(!this@MainActivity::socketServer.isInitialized){
-                                            socketServer = SocketServer(this@MainActivity,
-                                                streamHandler)
+                                            socketServer = SocketServer(streamHandler)
+                                            socketServer.start()
                                         }
                                     }
                                 }else{
