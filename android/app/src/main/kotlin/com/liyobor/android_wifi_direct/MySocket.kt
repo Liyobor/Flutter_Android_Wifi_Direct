@@ -9,7 +9,7 @@ import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
-open class MySocketN{
+open class MySocket{
 
     constructor(context: Context,streamerHandler: MainActivity.EventStreamHandler,port: Int){
         audioDataHandler = AudioDataHandler(context,streamerHandler)
@@ -39,7 +39,8 @@ open class MySocketN{
     lateinit var dataInputStream: DataInputStream
 
     open fun start(){
-
+        adpcm.decodeStateReset()
+        adpcm.encodeStateReset()
     }
 
     open fun close(){

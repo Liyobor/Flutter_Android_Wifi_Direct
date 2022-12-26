@@ -1,5 +1,7 @@
 package com.liyobor.android_wifi_direct
 
+import timber.log.Timber
+
 class Adpcm {
     private var encodeState = State()
     private var decodeState = State()
@@ -30,9 +32,11 @@ class Adpcm {
 
 
     fun encodeStateReset(){
+        Timber.i("encodeStateReset")
         encodeState.reset()
     }
     fun decodeStateReset(){
+        Timber.i("decodeStateReset")
         decodeState.reset()
     }
 

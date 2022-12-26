@@ -8,10 +8,11 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 class SocketClient(context: Context, streamerHandler: MainActivity.EventStreamHandler,port:Int,host:String?) :
-    MySocketN(context, streamerHandler, port,host) {
+    MySocket(context, streamerHandler, port,host) {
 
 
     override fun start() {
+        super.start()
         startClientThread(host,port)
     }
 

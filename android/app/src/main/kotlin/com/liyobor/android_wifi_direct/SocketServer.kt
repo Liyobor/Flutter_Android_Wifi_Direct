@@ -8,11 +8,12 @@ import java.net.ServerSocket
 import java.net.Socket
 
 class SocketServer(context: Context, streamerHandler: MainActivity.EventStreamHandler, port: Int) :
-    MySocketN(context, streamerHandler,port) {
+    MySocket(context, streamerHandler,port) {
 
     private var nServerPort = port
 
     override fun start(){
+        super.start()
         startServerThread()
     }
 

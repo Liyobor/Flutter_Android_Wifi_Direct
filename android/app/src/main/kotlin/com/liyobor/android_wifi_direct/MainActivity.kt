@@ -59,8 +59,8 @@ class MainActivity: FlutterActivity() {
     private val defaultPort = 9090
 
 
-    private lateinit var socketServer: MySocketN
-    private lateinit var socketClient: MySocketN
+    private lateinit var socketServer: MySocket
+    private lateinit var socketClient: MySocket
 
     private var isConnected = false
 
@@ -270,7 +270,7 @@ class MainActivity: FlutterActivity() {
                     Timber.i("port = ${map["port"]}")
                     socketClient = SocketClient(this,streamHandler,map["port"] as Int,map["ip"] as String)
                     socketClient.start()
-                    socketClient.adpcm.decodeStateReset()
+
                 }
 
                 "createServerTCP" ->{
@@ -283,14 +283,10 @@ class MainActivity: FlutterActivity() {
                     Timber.i("closeSocket")
                     if(this::socketClient.isInitialized){
                         socketClient.close()
-
-//                        socketClient.adpcm.decodeStateReset()
-
                     }
 
                     if(this::socketServer.isInitialized){
                         socketServer.close()
-
                     }
                 }
 
