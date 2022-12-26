@@ -28,12 +28,6 @@ class MainActivity: FlutterActivity() {
         const val PERMISSION_ID = 1010
     }
 
-    interface MySocket {
-        fun start()
-        fun close()
-        fun sendMessage(message:String)
-        fun uploadAudioToAWS()
-    }
 
 
     private val methodChannel = "com.liyobor.android_wifi_direct.method"
@@ -62,11 +56,11 @@ class MainActivity: FlutterActivity() {
     private var wReceiver: BroadcastReceiver? = null
     private val peers = mutableListOf<WifiP2pDevice>()
 
-    private val nServerPort = 8888
+    private val defaultPort = 9090
 
 
-    private lateinit var socketServer: MySocket
-    private lateinit var socketClient: MySocket
+    private lateinit var socketServer: MySocketN
+    private lateinit var socketClient: MySocketN
 
     private var isConnected = false
 
@@ -244,6 +238,7 @@ class MainActivity: FlutterActivity() {
                         wManager.requestGroupInfo(wChannel){
                                 group ->
                             if(group.isGroupOwner){
+
                                 socketServer.sendMessage(message)
                             }else{
                                 if(!this::socketClient.isInitialized){
@@ -273,7 +268,14 @@ class MainActivity: FlutterActivity() {
                     val map:Map<String,Any> = call.arguments()!!
                     Timber.i("ip = ${map["ip"]}")
                     Timber.i("port = ${map["port"]}")
-                    socketClient = SocketClient(this,streamHandler, map["ip"] as String, map["port"] as Int)
+                    socketClient = SocketClient(this,streamHandler,map["port"] as Int,map["ip"] as String)
+                    socketClient.start()
+                    socketClient.adpcm.decodeStateReset()
+                }
+
+                "createServerTCP" ->{
+                    socketServer = SocketServer(this,streamHandler,defaultPort)
+                    socketServer.start()
 
                 }
 
@@ -281,15 +283,20 @@ class MainActivity: FlutterActivity() {
                     Timber.i("closeSocket")
                     if(this::socketClient.isInitialized){
                         socketClient.close()
+
+//                        socketClient.adpcm.decodeStateReset()
+
                     }
 
                     if(this::socketServer.isInitialized){
                         socketServer.close()
+
                     }
                 }
 
                 "upload" ->{
                     socketClient.uploadAudioToAWS()
+//                    socketServer.uploadAudioToAWS()
                 }
                 else -> result.notImplemented()
             }
@@ -362,15 +369,15 @@ class MainActivity: FlutterActivity() {
                                     if(!p0.isGroupOwner){
                                         if(!this@MainActivity::socketClient.isInitialized){
                                             socketClient = SocketClient(this@MainActivity,
-                                                streamHandler,
-                                                p0.groupOwnerAddress.hostAddress,nServerPort,
+                                                streamHandler,defaultPort,
+                                                p0.groupOwnerAddress.hostAddress
 
                                             )
                                         }
                                     }else{
                                         if(!this@MainActivity::socketServer.isInitialized){
                                             socketServer = SocketServer(this@MainActivity,
-                                                streamHandler)
+                                                streamHandler,defaultPort)
                                         }
                                     }
                                 }else{
@@ -422,6 +429,12 @@ class MainActivity: FlutterActivity() {
         fun enterChat(){
             Handler(Looper.getMainLooper() ?: return).post {
                 eventSink?.success(mapOf("enterChat" to true))
+            }
+        }
+
+        fun onIsRecording(isRecording:Boolean){
+            Handler(Looper.getMainLooper() ?: return).post {
+                eventSink?.success(mapOf("isRecording" to isRecording))
             }
         }
 

@@ -1,49 +1,19 @@
 package com.liyobor.android_wifi_direct
 
 import android.content.Context
-import android.os.Looper
-import android.widget.Toast
 import timber.log.Timber
 import java.io.DataInputStream
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
+class SocketServer(context: Context, streamerHandler: MainActivity.EventStreamHandler, port: Int) :
+    MySocketN(context, streamerHandler,port) {
 
-class SocketServer constructor(
-    context: Context,
-    private val streamerHandler: MainActivity.EventStreamHandler): MainActivity.MySocket {
+    private var nServerPort = port
 
-    private var messageToClient:String? = null
-    private var serverSocket: ServerSocket? = null
-    private val nServerPort = 8888
-
-    private val audioDataHandler = AudioDataHandler(context)
-
-    private lateinit var serverInputStream :InputStream
-    private lateinit var serverOutputStream :OutputStream
-    private lateinit var dataInputStream:DataInputStream
-
-
-    override fun start() {
+    override fun start(){
         startServerThread()
-    }
-
-    override fun close(){
-        serverInputStream.close()
-        serverOutputStream.close()
-        dataInputStream.close()
-        serverSocket?.close()
-    }
-
-    override fun sendMessage(message: String) {
-        messageToClient = message
-    }
-
-    override fun uploadAudioToAWS() {
-        audioDataHandler.stop()
     }
 
 
@@ -51,6 +21,7 @@ class SocketServer constructor(
         try {
             Timber.i("startServerThread")
             serverSocket = ServerSocket(nServerPort)
+            Timber.i("nServerPort = $nServerPort")
             Timber.i("Waiting for client connection…")
             Thread{
                 waitForClient()
@@ -77,31 +48,11 @@ class SocketServer constructor(
 
     private fun newClient(socket: Socket){
         try{
-            serverInputStream = socket.getInputStream()
-            serverOutputStream = socket.getOutputStream()
-//            val bufferedReader = BufferedReader(InputStreamReader(serverInputStream))
-            dataInputStream = DataInputStream(serverInputStream)
-//            var stringLine:String?
+            inputStream = socket.getInputStream()
+            outputStream = socket.getOutputStream()
+            dataInputStream = DataInputStream(inputStream)
             Timber.i("socket.isConnected = ${socket.isConnected}")
             startMonitoringMessage(socket.isConnected,socket.isClosed)
-//            Thread{
-//                while(socket.isConnected && !socket.isClosed){
-//                    if(messageToClient!=null){
-//                        serverOutputStream.write(messageToClient!!.toByteArray())
-//                        serverOutputStream.write("\r\n".toByteArray())
-//                        serverOutputStream.flush()
-//                        messageToClient = null
-//                    }
-//                }
-//            }.start()
-//            Looper.prepare()
-//            while (socket.isConnected && !socket.isClosed){
-//                stringLine = bufferedReader.readLine()
-//                if(stringLine!=null){
-//                    Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
-//                    streamerHandler.onMessageReceived(stringLine)
-//                }
-//            }
 
         }catch (e:Exception){
             e.printStackTrace()
@@ -110,17 +61,17 @@ class SocketServer constructor(
     }
 
     private fun writeMessageToOutputStream(){
-        serverOutputStream.write(messageToClient!!.toByteArray())
-        serverOutputStream.write("\r\n".toByteArray())
-        serverOutputStream.flush()
+        outputStream.write(messageSending!!.toByteArray())
+        outputStream.write("\r\n".toByteArray())
+        outputStream.flush()
     }
 
     private fun startMonitoringMessage(isConnected:Boolean,isClosed:Boolean){
         Thread{
             while(isConnected && !isClosed){
-                if(messageToClient!=null){
+                if(messageSending!=null){
                     writeMessageToOutputStream()
-                    messageToClient = null
+                    messageSending = null
                 }
             }
         }.start()
@@ -132,20 +83,35 @@ class SocketServer constructor(
         while (isConnected && !isClosed){
             try {
                 val rcv = dataInputStream.read()
-                if (receiveCount % 2 == 1) {
-                    temp = rcv
-                } else {
-                    temp += (rcv.shl(8))
-                    val short = temp.toShort()
-                    Timber.i("temp = $short")
-                    floatList.add((short / 32767.0).toFloat())
-                    temp = 0
+
+
+                if(adpcm.isEnable){
+                    val leftFragment = (rcv shr 4)
+                    val rightFragment = (rcv and 0xf)
+
+                    floatList.add(adpcm.adpcm3Decode(leftFragment))
+                    floatList.add(adpcm.adpcm3Decode(rightFragment))
+                    if (floatList.size >= 3200) {
+                        audioDataHandler.writeInTemp(floatList.toFloatArray())
+                        floatList.clear()
+                    }
+
+                }else{
+                    if (receiveCount % 2 == 1) {
+                        temp = rcv
+                    } else {
+                        temp += (rcv.shl(8))
+                        val short = temp.toShort()
+                        Timber.i("temp = $short")
+                        floatList.add((short / 32767.0).toFloat())
+                        temp = 0
+                    }
+                    if (floatList.size >= 3200) {
+                        audioDataHandler.writeInTemp(floatList.toFloatArray())
+                        floatList.clear()
+                    }
+                    receiveCount += 1
                 }
-                if (floatList.size >= 3200) {
-                    audioDataHandler.writeInTemp(floatList.toFloatArray())
-                    floatList.clear()
-                }
-                receiveCount += 1
             }catch (e:Exception){
                 e.printStackTrace()
             }

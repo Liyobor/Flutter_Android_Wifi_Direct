@@ -7,17 +7,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-fun dataUnzip(ubyteArray: UByteArray):MutableList<Int>{
-    val audioData:MutableList<Int> = mutableListOf()
-    for(i in ubyteArray){
-        val dataLeftFragment = (i.toInt() shr 4)
-        val dataRightFragment = (i.toInt() and 0xf)
-        audioData.add(dataLeftFragment)
-        audioData.add(dataRightFragment)
-    }
-    return audioData
-}
-
 fun isNetworkAvailable(context: Context): Boolean {
     val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

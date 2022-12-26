@@ -13,7 +13,7 @@ class TCPPage extends StatefulWidget {
 
 class _TCPPageState extends State<TCPPage> {
 
-  final TextEditingController _ipTextController = TextEditingController(text: "192.168.4.1");
+  final TextEditingController _ipTextController = TextEditingController(text: "192.168.202.80");
   final TextEditingController _portTextController = TextEditingController(text: "9090");
 
   @override
@@ -50,6 +50,13 @@ class _TCPPageState extends State<TCPPage> {
                   ),
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                child: Consumer<PortalState>(
+                  builder: (_, pState, __) =>
+                  (pState.isRecording) ? const Text("is in receiving"):const Text("is not in receiving"),
+                ),
+              ),
               Row(
                 children: [
                   SizedBox(
@@ -65,6 +72,16 @@ class _TCPPageState extends State<TCPPage> {
                       },
                     ),
                   ),
+                  // SizedBox(
+                  //   height: 48.0,
+                  //   child: TextButton(
+                  //     child: const Text("create"),
+                  //     onPressed: () async {
+                  //
+                  //       pMgr.createServerTCP();
+                  //     },
+                  //   ),
+                  // ),
                   SizedBox(
                     height: 48.0,
                     child: TextButton(

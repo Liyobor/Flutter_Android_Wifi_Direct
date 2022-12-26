@@ -37,6 +37,11 @@ class PortalManager{
 
   Stream<MessageList> get messageList => _messageStreamController.stream;
 
+  final StreamController<PortalState> _portalStreamController =
+  StreamController.broadcast();
+
+  Stream<PortalState> get portalState => _portalStreamController.stream;
+
   static const methodChannel = MethodChannel("com.liyobor.android_wifi_direct.method");
   static const eventStream = EventChannel("com.liyobor.android_wifi_direct.event");
   late final StreamSubscription _eventSubscription;
@@ -74,6 +79,11 @@ class PortalManager{
       'ip':ip,
     };
     invokeMethod("connectToServerTCP", map);
+  }
+
+  void createServerTCP(){
+
+    invokeMethod("createServerTCP", null);
   }
 
   void closeSocket(){
@@ -138,6 +148,12 @@ class PortalManager{
 
       NavigationService.navigatorKey.currentState?.pushNamed("/chat");
     }
+
+    if(data["isRecording"]!=null){
+      bool isRecording = data["isRecording"];
+      _portalStreamController.sink.add(PortalState(isRecording: isRecording));
+    }
+
   }
 
 
@@ -151,13 +167,9 @@ class PortalManager{
 
 @immutable
 class PortalState {
-  const PortalState(
-      this.flashOn,
-      this.vibrateOn, {
+  const PortalState({
         required this.isRecording,
       });
-  final bool flashOn;
-  final bool vibrateOn;
   final bool isRecording;
 }
 

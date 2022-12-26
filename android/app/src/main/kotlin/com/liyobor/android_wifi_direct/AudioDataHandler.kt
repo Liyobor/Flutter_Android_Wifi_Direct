@@ -13,7 +13,8 @@ import java.nio.ByteOrder
 import java.util.*
 import kotlin.concurrent.schedule
 
-class AudioDataHandler(private val context: Context) {
+class AudioDataHandler(private val context: Context,
+                       private val streamerHandler: MainActivity.EventStreamHandler,) {
     private var fileTmp: File? = null
     private var outputStream: BufferedOutputStream? = null
     private var fileSize: Int = 0
@@ -36,6 +37,7 @@ class AudioDataHandler(private val context: Context) {
             if (fileTmp?.exists() != true) return
             val output = FileOutputStream(fileTmp)
             outputStream = BufferedOutputStream(output)
+            streamerHandler.onIsRecording(true)
 
 //            System.out.println(outputStream.javaClass.output)
         } catch (e:Exception) {
@@ -44,6 +46,7 @@ class AudioDataHandler(private val context: Context) {
     }
 
     fun writeInTemp(audioData: FloatArray){
+
         try {
             val bytes = ByteArray(audioData.size * 4)
             ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder()).asFloatBuffer().put(audioData)
@@ -55,6 +58,7 @@ class AudioDataHandler(private val context: Context) {
     }
 
     fun stop(){
+//        streamerHandler.onIsRecording(false)
         Timber.i("stop")
         Timber.i("isNetworkAvailable = ${isNetworkAvailable(context)}")
         outputStream?.close()
@@ -62,8 +66,15 @@ class AudioDataHandler(private val context: Context) {
     }
 
     private fun convert2Wav() {
-        if (fileTmp?.exists() != true) return
-        if (fileTmp!!.length() <= 100) return
+        if (fileTmp?.exists() != true) {
+            Timber.i("fileTmp not exist")
+            return
+        }
+        if (fileTmp!!.length() <= 100){
+            Timber.i("fileTmp!!.length() <= 100")
+            return}
+
+        Timber.i("start convert thread")
         Thread {
             try {
 //                val fileSize: Int = String.valueOf(wavFileTmp!!.length() / 1024).toInt()

@@ -45,6 +45,10 @@ Future<void> main() async {
           create: (_) => portal.messageList,
           initialData: const MessageList(box: []),
         ),
+        StreamProvider<PortalState>(
+          create: (_) => portal.portalState,
+          initialData: const PortalState(isRecording: false),
+        ),
       ], child: const MyApp())
   );
 }

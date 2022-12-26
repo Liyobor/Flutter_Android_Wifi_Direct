@@ -4,41 +4,16 @@ import android.content.Context
 import timber.log.Timber
 import java.io.DataInputStream
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 
-class SocketClient constructor(
-    context: Context,
-    private val streamerHandler: MainActivity.EventStreamHandler,
-    private val host:String?,private val port:Int): MainActivity.MySocket {
+class SocketClient(context: Context, streamerHandler: MainActivity.EventStreamHandler,port:Int,host:String?) :
+    MySocketN(context, streamerHandler, port,host) {
 
-    private var clientSocket : Socket? = null
-    private var messageToServer:String? = null
-    private val audioDataHandler = AudioDataHandler(context)
-
-
-    private lateinit var clientInputStream :InputStream
-    private lateinit var clientOutputStream:OutputStream
-    private lateinit var dataInputStream:DataInputStream
 
     override fun start() {
         startClientThread(host,port)
     }
-
-    override fun close(){
-        clientInputStream.close()
-        clientOutputStream.close()
-        dataInputStream.close()
-        clientSocket?.close()
-    }
-
-    override fun sendMessage(message:String) {
-        Timber.i("clientSend")
-        messageToServer = message
-    }
-
 
     private fun startClientThread(host:String?,port:Int){
         if (host==null){
@@ -46,37 +21,16 @@ class SocketClient constructor(
             return
         }
         Timber.i("create clientThread")
-//        streamerHandler.enterChat()
         Thread {
             try {
-                clientSocket = Socket()
-                clientSocket?.bind(null)
-                clientSocket?.connect((InetSocketAddress(host, port)), 500)
-                clientInputStream = clientSocket?.getInputStream()!!
-                clientOutputStream= clientSocket?.getOutputStream()!!
-//                val bufferedReader = BufferedReader(InputStreamReader(clientInputStream))
-                dataInputStream = DataInputStream(clientInputStream)
-//                Thread {
-//                    while(clientSocket!!.isConnected && !clientSocket!!.isClosed){
-//                        messageSend()
-////                        if(messageToServer!=null){
-////                            clientOutputStream.write(messageToServer!!.toByteArray())
-////                            clientOutputStream.write("\r\n".toByteArray())
-////                            clientOutputStream.flush()
-////                            messageToServer=null
-////                        }
-//                    }
-//                }.start()
-//                Looper.prepare()
+                socket = Socket()
+                socket?.bind(null)
+                socket?.connect((InetSocketAddress(host, port)), 500)
+                inputStream = socket?.getInputStream()!!
+                outputStream= socket?.getOutputStream()!!
+                dataInputStream = DataInputStream(inputStream)
                 startMonitoringMessage()
-//                while (clientSocket!!.isConnected && !clientSocket!!.isClosed){
-//                    val rcv = dataInputStream.read()
-//                    Timber.i("rcv = $rcv")
-//                    val stringLine: String? = bufferedReader.readLine()
 
-//                    Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
-//                    streamerHandler.onMessageReceived(rcv.toString())
-//                }
             } catch (e: IOException) {
                 e.printStackTrace()
             }
@@ -85,22 +39,24 @@ class SocketClient constructor(
 
 
     private fun writeMessageToOutputStream(){
-        clientOutputStream.write(messageToServer!!.toByteArray())
-        clientOutputStream.write("\r\n".toByteArray())
-        clientOutputStream.flush()
+        outputStream.write(messageSending!!.toByteArray())
+        outputStream.write("\r\n".toByteArray())
+        outputStream.flush()
     }
 
     private fun startMonitoringMessage(){
 
 
         Thread {
-            while(clientSocket!!.isConnected && !clientSocket!!.isClosed){
+            while(socket!!.isConnected && !socket!!.isClosed){
 
-                if(messageToServer!=null) {
+                if(messageSending!=null) {
                     writeMessageToOutputStream()
-                    messageToServer=null
+                    messageSending=null
                 }
+
             }
+
         }.start()
 
         audioDataHandler.initializeFile()
@@ -109,41 +65,53 @@ class SocketClient constructor(
         val floatList = mutableListOf<Float>()
         var receiveCount = 1
         var temp = 0
-        while (clientSocket!!.isConnected && !clientSocket!!.isClosed){
+        Thread{
+            while (socket!!.isConnected && !socket!!.isClosed){
 
 
-//            read/handle message in this scope
+                try{
+                    val rcv = dataInputStream.read()
 
-//            val rcv = dataInputStream.read()
-            try{
-                val rcv = dataInputStream.read()
-                if (receiveCount % 2 == 1) {
-                    temp = rcv
-                } else {
-                    temp += (rcv.shl(8))
-                    val short = temp.toShort()
-                    Timber.i("temp = $short")
-                    floatList.add((short / 32767.0).toFloat())
-                    temp = 0
+
+                    Timber.i("rcv = $rcv")
+
+
+                    if(adpcm.isEnable){
+                        val leftFragment = (rcv shr 4)
+                        val rightFragment = (rcv and 0xf)
+
+                        floatList.add(adpcm.adpcm3Decode(leftFragment))
+                        floatList.add(adpcm.adpcm3Decode(rightFragment))
+                        if (floatList.size >= 3200) {
+                            audioDataHandler.writeInTemp(floatList.toFloatArray())
+                            floatList.clear()
+                        }
+
+                    }else{
+
+                        if (receiveCount % 2 == 1) {
+                            temp = rcv
+                        } else {
+                            temp += (rcv.shl(8))
+                            val short = temp.toShort()
+                            Timber.i("temp = $short")
+                            floatList.add((short / 32767.0).toFloat())
+                            temp = 0
+                        }
+                        if (floatList.size >= 3200) {
+                            audioDataHandler.writeInTemp(floatList.toFloatArray())
+                            floatList.clear()
+                        }
+                        receiveCount += 1
+                    }
+
+
+                }catch (e:Exception){
+                    e.printStackTrace()
                 }
-                if (floatList.size >= 3200) {
-                    audioDataHandler.writeInTemp(floatList.toFloatArray())
-                    floatList.clear()
-                }
-                receiveCount += 1
-            }catch (e:Exception){
-                e.printStackTrace()
             }
+        }.start()
 
-//                    val stringLine: String? = bufferedReader.readLine()
 
-//                    Toast.makeText(context,"receive message : $stringLine", Toast.LENGTH_LONG).show()
-//                    streamerHandler.onMessageReceived(rcv.toString())
-        }
-
-    }
-
-    override fun uploadAudioToAWS(){
-        audioDataHandler.stop()
     }
 }
