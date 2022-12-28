@@ -12,25 +12,24 @@ class SocketServer(context: Context, streamerHandler: MainActivity.EventStreamHa
 
     private var nServerPort = port
 
-    override fun start(){
-        super.start()
-        startServerThread()
-    }
-
-
-    private fun startServerThread(){
-        try {
+    override fun setupWorkingThread(): Thread? {
+        return try {
             Timber.i("startServerThread")
             serverSocket = ServerSocket(nServerPort)
             Timber.i("nServerPort = $nServerPort")
             Timber.i("Waiting for client connection…")
-            Thread{
+            val thread = Thread{
                 waitForClient()
-            }.start()
+            }
+            thread
         } catch (e: IOException) {
             e.printStackTrace()
+            null
         }
     }
+
+
+
 
 
     private fun waitForClient(){

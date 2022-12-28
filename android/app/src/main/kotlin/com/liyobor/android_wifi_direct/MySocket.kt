@@ -9,7 +9,7 @@ import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
-open class MySocket{
+abstract class MySocket{
 
     constructor(context: Context,streamerHandler: MainActivity.EventStreamHandler,port: Int){
         audioDataHandler = AudioDataHandler(context,streamerHandler)
@@ -39,9 +39,21 @@ open class MySocket{
     lateinit var dataInputStream: DataInputStream
 
     open fun start(){
+        resetState()
+        setupWorkingThread()?.start()
+    }
+
+
+    private fun resetState(){
         adpcm.decodeStateReset()
         adpcm.encodeStateReset()
     }
+
+
+
+    /** Initialization of socket or serverSocket need to be implement in subclass that inherited this abstract class.  */
+    abstract fun setupWorkingThread():Thread?
+
 
     open fun close(){
         streamerHandler.onIsRecording(false)
@@ -50,6 +62,7 @@ open class MySocket{
         dataInputStream.close()
         socket?.close()
     }
+
 
     open fun sendMessage(message:String) {
         Timber.i("sendMessage")

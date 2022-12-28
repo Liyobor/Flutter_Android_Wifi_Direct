@@ -11,18 +11,19 @@ class SocketClient(context: Context, streamerHandler: MainActivity.EventStreamHa
     MySocket(context, streamerHandler, port,host) {
 
 
-    override fun start() {
-        super.start()
-        startClientThread(host,port)
+    init {
+        this.port = port
+        this.host = host
     }
 
-    private fun startClientThread(host:String?,port:Int){
+
+    override fun setupWorkingThread(): Thread? {
         if (host==null){
             Timber.i("host can not be null!")
-            return
+            return null
         }
         Timber.i("create clientThread")
-        Thread {
+        return Thread {
             try {
                 socket = Socket()
                 socket?.bind(null)
@@ -35,8 +36,11 @@ class SocketClient(context: Context, streamerHandler: MainActivity.EventStreamHa
             } catch (e: IOException) {
                 e.printStackTrace()
             }
-        }.start()
+        }
     }
+
+
+
 
 
     private fun writeMessageToOutputStream(){
