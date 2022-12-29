@@ -62,20 +62,20 @@ class AudioDataHandler(private val context: Context,
         Timber.i("stop")
         Timber.i("isNetworkAvailable = ${isNetworkAvailable(context)}")
         outputStream?.close()
-        convert2Wav()
+
     }
 
-    private fun convert2Wav() {
+    fun getWavConvertThread():Thread? {
         if (fileTmp?.exists() != true) {
             Timber.i("fileTmp not exist")
-            return
+            return null
         }
         if (fileTmp!!.length() <= 100){
             Timber.i("fileTmp!!.length() <= 100")
-            return}
+            return null
+        }
 
-        Timber.i("start convert thread")
-        Thread {
+        return Thread {
             try {
 //                val fileSize: Int = String.valueOf(wavFileTmp!!.length() / 1024).toInt()
                 val raw = fileTmp!!.readBytes().copyOfRange(0, fileSize)
@@ -86,18 +86,18 @@ class AudioDataHandler(private val context: Context,
                     .setNumChannels(WavFileBuilder.CHANNELS_MONO)
                     .setSubChunk1Size(WavFileBuilder.SUB_CHUNK_1_SIZE_PCM)
                     .build(raw)
-                if (isNetworkAvailable(context)) {
-                    uploadFile()
-                } else {
-                    deleteFile()
-                }
+//                if (isNetworkAvailable(context)) {
+//                    uploadFile()
+//                } else {
+//                    deleteCache()
+//                }
             } catch (e: FileNotFoundException) {
                 Timber.i("file not found exception %s", e.localizedMessage)
             }
-        }.start()
+        }
     }
 
-    private fun uploadFile() {
+    fun uploadFile() {
         if (wavCache == null) {
             Timber.i("wav cache empty, skipped")
             return
@@ -124,10 +124,10 @@ class AudioDataHandler(private val context: Context,
         } catch (e: Exception) {
             Timber.i("http time out $e")
         }
-        deleteFile()
+
     }
 
-    private fun deleteFile() {
+    fun deleteCache() {
         Timer("deleteWavFile", true).schedule(500) {
             if (!fileTmp!!.delete()) {
                 Timber.i("file not Deleted")

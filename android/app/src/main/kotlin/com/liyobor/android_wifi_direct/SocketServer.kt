@@ -60,11 +60,6 @@ class SocketServer(context: Context, streamerHandler: MainActivity.EventStreamHa
 
     }
 
-    private fun writeMessageToOutputStream(){
-        outputStream.write(messageSending!!.toByteArray())
-        outputStream.write("\r\n".toByteArray())
-        outputStream.flush()
-    }
 
     private fun startMonitoringMessage(isConnected:Boolean,isClosed:Boolean){
         Thread{

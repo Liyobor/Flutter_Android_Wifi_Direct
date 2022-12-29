@@ -43,11 +43,7 @@ class SocketClient(context: Context, streamerHandler: MainActivity.EventStreamHa
 
 
 
-    private fun writeMessageToOutputStream(){
-        outputStream.write(messageSending!!.toByteArray())
-        outputStream.write("\r\n".toByteArray())
-        outputStream.flush()
-    }
+
 
     private fun startMonitoringMessage(){
 

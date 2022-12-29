@@ -15,6 +15,7 @@ abstract class MySocket{
         audioDataHandler = AudioDataHandler(context,streamerHandler)
         this.streamerHandler = streamerHandler
         this.port = port
+        this.context = context
     }
 
     constructor(context: Context, streamerHandler: MainActivity.EventStreamHandler, port:Int, host:String?) : this(context,streamerHandler,port) {
@@ -22,9 +23,11 @@ abstract class MySocket{
     }
 
 
+    private var context:Context
     val adpcm= Adpcm()
     var host:String? =null
     var port :Int
+
 
 
     var socket : Socket? = null
@@ -38,7 +41,7 @@ abstract class MySocket{
     lateinit var outputStream: OutputStream
     lateinit var dataInputStream: DataInputStream
 
-    open fun start(){
+    fun start(){
         resetState()
         setupWorkingThread()?.start()
     }
@@ -55,7 +58,7 @@ abstract class MySocket{
     abstract fun setupWorkingThread():Thread?
 
 
-    open fun close(){
+    fun close(){
         streamerHandler.onIsRecording(false)
         inputStream.close()
         outputStream.close()
@@ -64,12 +67,28 @@ abstract class MySocket{
     }
 
 
-    open fun sendMessage(message:String) {
+    fun sendMessage(message:String) {
         Timber.i("sendMessage")
         messageSending = message
     }
 
-    open fun uploadAudioToAWS(){
+    fun uploadAudioToAWS(){
         audioDataHandler.stop()
+        val convertThread = audioDataHandler.getWavConvertThread()
+        convertThread?.start()
+        convertThread?.join()
+        if (isNetworkAvailable(context)){
+            audioDataHandler.uploadFile()
+            audioDataHandler.deleteCache()
+        }else{
+            audioDataHandler.deleteCache()
+        }
+    }
+
+
+    protected fun writeMessageToOutputStream(){
+        outputStream.write(messageSending!!.toByteArray())
+        outputStream.write("\r\n".toByteArray())
+        outputStream.flush()
     }
 }
