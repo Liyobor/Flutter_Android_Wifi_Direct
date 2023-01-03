@@ -75,14 +75,19 @@ abstract class MySocket{
     fun uploadAudioToAWS(){
         audioDataHandler.stop()
         val convertThread = audioDataHandler.getWavConvertThread()
+        Timber.i("get thread")
         convertThread?.start()
         convertThread?.join()
-        if (isNetworkAvailable(context)){
-            audioDataHandler.uploadFile()
-            audioDataHandler.deleteCache()
-        }else{
-            audioDataHandler.deleteCache()
-        }
+        Thread{
+            if (isNetworkAvailable(context)){
+                audioDataHandler.uploadFile()
+                audioDataHandler.deleteCache()
+            }else{
+                audioDataHandler.deleteCache()
+            }
+        }.start()
+
+
     }
 
 
