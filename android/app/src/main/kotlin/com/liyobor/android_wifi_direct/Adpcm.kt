@@ -3,8 +3,12 @@ package com.liyobor.android_wifi_direct
 import timber.log.Timber
 
 class Adpcm {
-    private var encodeState = State()
-    private var decodeState = State()
+
+
+
+    private var encodeAdpcm3State = Adpcm3State()
+    private var decodeAdpcm3State = Adpcm3State()
+    private var adpcm2DecodeState = Adpcm2State()
 
 
     var isEnable = true
@@ -14,7 +18,7 @@ class Adpcm {
         -1, -1, -1, -1, 2, 4, 6, 8
     )
 
-    private val stepsizeTable3 = listOf(
+    private val stepSizeTable3 = listOf(
         7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45,
         50, 55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230,
         253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963,
@@ -26,27 +30,67 @@ class Adpcm {
 
 
     init {
-        this.encodeState = State()
-        this.decodeState = State()
+        this.encodeAdpcm3State = Adpcm3State()
+        this.decodeAdpcm3State = Adpcm3State()
+        this.adpcm2DecodeState = Adpcm2State()
     }
 
 
     fun encodeStateReset(){
         Timber.i("encodeStateReset")
-        encodeState.reset()
+        encodeAdpcm3State.reset()
     }
     fun decodeStateReset(){
         Timber.i("decodeStateReset")
-        decodeState.reset()
+        decodeAdpcm3State.reset()
+        adpcm2DecodeState.reset()
+    }
+
+    private fun diffCalculate(s:Int,ss:Int):Int{
+        val diff: Int
+        val smp : Int = s and 0x7
+
+        diff = smp * ss shr 2
+
+        return if(s and 0x8 == 8){
+            -diff
+        }else{
+            diff
+        }
+    }
+
+    private fun clamp(value:Int,min:Int,max:Int):Int{
+        if(value>max){
+            return max
+        }else if(value < min){
+            return min
+        }
+        return value
+    }
+
+    fun adpcm2Decode(delta: Int):Float{
+        adpcm2DecodeState.ps += diffCalculate(delta,adpcm2DecodeState.ss)
+        var pcm :Int = adpcm2DecodeState.ps
+        pcm = clamp(pcm,-32768,32767)
+        adpcm2DecodeState.i += indexTable3[delta]
+        adpcm2DecodeState.i = clamp(adpcm2DecodeState.i,0,88)
+        adpcm2DecodeState.ss = stepSizeTable3[adpcm2DecodeState.i]
+        return if(pcm <0){
+            pcm/32768f
+        }else if(pcm > 0){
+            pcm/32767f
+        }else{
+            pcm.toFloat()
+        }
     }
 
     fun adpcm3Decode(delta:Int): Float {
 
 
-        var valpred = decodeState.valprev
+        var valpred = decodeAdpcm3State.valprev
 
-        var stateIndex = decodeState.index
-        var step = stepsizeTable3[stateIndex]
+        var stateIndex = decodeAdpcm3State.index
+        var step = stepSizeTable3[stateIndex]
         var vpdiff = step shr 3
 
         stateIndex += indexTable3[delta]
@@ -78,9 +122,9 @@ class Adpcm {
                 valpred = 32767
             }
         }
-        step = stepsizeTable3[stateIndex]
-        decodeState.valprev = valpred
-        decodeState.index = stateIndex
+        step = stepSizeTable3[stateIndex]
+        decodeAdpcm3State.valprev = valpred
+        decodeAdpcm3State.index = stateIndex
 
 
 //        return valpred
@@ -96,9 +140,9 @@ class Adpcm {
 
 
     fun adpcm3Encode(inData:Byte): Int {
-        var valpred:Int = encodeState.valprev
-        var index:Int = encodeState.index
-        var step:Int = stepsizeTable3[index]
+        var valpred:Int = encodeAdpcm3State.valprev
+        var index:Int = encodeAdpcm3State.index
+        var step:Int = stepSizeTable3[index]
         var diff:Int = inData - valpred
         var delta:Int
         if(diff<0){
@@ -142,22 +186,34 @@ class Adpcm {
         index +=indexTable3[delta]
         if(index<0) index = 0
         else if (index>88) index =88
-        step = stepsizeTable3[index]
-        encodeState.valprev = valpred
-        encodeState.index = index
+        step = stepSizeTable3[index]
+        encodeAdpcm3State.valprev = valpred
+        encodeAdpcm3State.index = index
         return delta
     }
 
 
 
 
-    class State {
+    class Adpcm3State {
         var valprev = 0
         var index = 0
 
         fun reset(){
             this.valprev=0
             this.index = 0
+        }
+    }
+
+    class Adpcm2State{
+        var ps = 0
+        var i = 0
+        var ss = 7
+
+        fun reset(){
+            ps = 0
+            i = 0
+            ss = 7
         }
     }
 }
